@@ -1,10 +1,15 @@
-#include <stdio.h>
-#include "mlibTLVParse.h"
 
-typedef enum {
-    PRIMITIVE_FRAME,                    /*基本结构体*/
-    PRIVATE_FRAME,                      /*私有结构体*/
-}tlv_tag_frame_type_t;
+/**
+ * @file mlibTLVParse.c
+ * @author MGDG
+ * @brief lib for tlv parse
+ * @version 0.1
+ * @date 2020-09-21
+ * 
+ * @copyright Copyright (c) 2020
+ * 
+ */
+#include "mlibTLVParse.h"
 
 typedef enum {
     PRIMITIVE_DATA = 0,                 /*原始类型、基本类型*/
@@ -12,12 +17,10 @@ typedef enum {
 }tlv_tag_data_type_t;
 
 static int _mlib_tlv_get_tag(const uint8_t *data, int dataLen, int *tag, tlv_tag_data_type_t *dataType) {
-    int tagLen = 0;
+    int tagLen = 1;
     *tag = data[0];
     *dataType = (data[0] & 0x20) ? CONSTRUCTED_DATA : PRIMITIVE_DATA;
-    if((data[0] & 0x1F) < 0x1F) {
-        tagLen = 1;
-    }else {
+    if((data[0] & 0x1F) == 0x1F) {
         for(tagLen=1;tagLen<dataLen;tagLen++) {
             *tag <<= 8;
             *tag |= data[tagLen];
@@ -36,7 +39,7 @@ static int _mlib_tlv_get_len(const uint8_t *data, int dataLen, int *len) {
     if(dataLen <= 0) {
         return -1;
     }
-    int lenLen;
+    int lenLen = 1;
     if(data[0] & 0x80) {
         lenLen = 1 + (data[0]&0x7F);
         if((lenLen > dataLen) || (lenLen > 5)) {
@@ -49,26 +52,23 @@ static int _mlib_tlv_get_len(const uint8_t *data, int dataLen, int *len) {
         }
     }else {
         *len = data[0];
-        lenLen = 1;
     }
     return lenLen;
 }
 
-void _mlib_tlv_parse(mlib_tlv_t **item,const uint8_t *data, int dataLen, int loopFlg) {
+static void _mlib_tlv_parse(mlib_tlv_t **item,const uint8_t *data, int dataLen, int loopFlg) {
     int tag,tagLen,len,lenLen;
     tlv_tag_data_type_t tagType;
     while(dataLen >= 3) {
         /*get tag*/
-        tagLen = _mlib_tlv_get_tag(data,dataLen,&tag,&tagType);
-        if(tagLen <= 0) {
+        if((tagLen = _mlib_tlv_get_tag(data,dataLen,&tag,&tagType)) <= 0) {
             return;
         }
         data += tagLen;
         dataLen -= tagLen;
 
         /*get len*/
-        lenLen = _mlib_tlv_get_len(data,dataLen,&len);
-        if(lenLen <= 0) {
+        if((lenLen = _mlib_tlv_get_len(data,dataLen,&len)) <= 0) {
             return;
         }
         data += lenLen;
@@ -165,8 +165,8 @@ int mlib_tlv_get_value(const mlib_tlv_t *tlv,int tag, const uint8_t **value) {
 
 void mlib_tlv_test(void) {
     const uint8_t hex[] = { 
-        0x1F, 0x88, 0x01,	// Extended tag
-        0x82, 0x01, 0x01, 	// Extended length: 257 bytes
+        0x1F, 0x88, 0x01,   // Extended tag
+        0x82, 0x01, 0x01,   // Extended length: 257 bytes
         0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F,
         0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1A, 0x1B, 0x1C, 0x1D, 0x1E, 0x1F,
         0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28, 0x29, 0x2A, 0x2B, 0x2C, 0x2D, 0x2E, 0x2F,
@@ -184,24 +184,24 @@ void mlib_tlv_test(void) {
         0xE0, 0xE1, 0xE2, 0xE3, 0xE4, 0xE5, 0xE6, 0xE7, 0xE8, 0xE9, 0xEA, 0xEB, 0xEC, 0xED, 0xEE, 0xEF,
         0xF0, 0xF1, 0xF2, 0xF3, 0xF4, 0xF5, 0xF6, 0xF7, 0xF8, 0xF9, 0xFA, 0xFB, 0xFC, 0xFD, 0xFE, 0xFF,
         0x01,
-        0x02,		// Short tag
-        0x04,		// Short length: 4 bytes
+        0x02,       // Short tag
+        0x04,       // Short length: 4 bytes
         0x00, 0x00, 0x01, 0x01,
         
-        0x24,		// Short tag
+        0x24,       // Short tag
         0x08,
-        0x24,		// Short tag
-        0x06,		// Short length: 4 bytes
-        0x02,		// Short tag
-        0x04,		// Short length: 4 bytes
+        0x24,       // Short tag
+        0x06,       // Short length: 4 bytes
+        0x02,       // Short tag
+        0x04,       // Short length: 4 bytes
         0x00, 0x00, 0x01, 0x02,
         
-        0x24,		// Short tag
+        0x24,       // Short tag
         0x08,
-        0x24,		// Short tag
-        0x06,		// Short length: 4 bytes
-        0x02,		// Short tag
-        0x04,		// Short length: 4 bytes
+        0x24,       // Short tag
+        0x06,       // Short length: 4 bytes
+        0x02,       // Short tag
+        0x04,       // Short length: 4 bytes
         0x00, 0x00, 0x01, 0x03,
     // };
 
@@ -211,6 +211,8 @@ void mlib_tlv_test(void) {
         0x50, 0x0A, 0x42, 0x45, 0x41, 0x4E, 0x20, 0x54, 0x45, 0x43, 0x48, 0x53, 0x9F, 0x0C, 0x03, 0x07,
         0x00, 0x00
     };
+
+    mlib_tlv_delete(mlib_tlv_parse(hex,sizeof(hex)));
 
     mlib_tlv_t *tlv = mlib_tlv_parse(hex,sizeof(hex));
     if(NULL != tlv) {
